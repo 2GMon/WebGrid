@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
-import type { CellBounds, CellRuntime, Settings, Store, Workspace } from '@shared/types'
+import {
+  DEFAULT_SESSION_ID,
+  partitionFor,
+  type CellBounds,
+  type CellRuntime,
+  type Settings,
+  type Store,
+  type Workspace,
+} from '@shared/types'
 import { CellFrame, DRAG_THRESHOLD_PX } from './components/CellFrame'
 import { Toolbar } from './components/Toolbar'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -10,9 +18,12 @@ import {
   cellsLostBy,
   liveCells,
   newCell,
+  newSession,
   newWorkspace,
+  reassignSession,
   replaceCell,
   resizeGrid,
+  sessionUsage,
   swapCells,
   updateCell,
 } from './state'
@@ -78,6 +89,50 @@ export function App() {
   const setSettings = useCallback((patch: Partial<Settings>) => {
     setStore((prev) => (prev ? { ...prev, settings: { ...prev.settings, ...patch } } : prev))
   }, [])
+
+  // --- sessions ------------------------------------------------------------
+
+  const addSession = useCallback(() => {
+    setStore((prev) =>
+      prev
+        ? { ...prev, sessions: [...prev.sessions, newSession(`Session ${prev.sessions.length + 1}`)] }
+        : prev,
+    )
+  }, [])
+
+  const renameSession = useCallback((id: string, name: string) => {
+    setStore((prev) =>
+      prev ? { ...prev, sessions: prev.sessions.map((s) => (s.id === id ? { ...s, name } : s)) } : prev,
+    )
+  }, [])
+
+  /**
+   * Deleting is destructive by design: the partition's cookies and storage are erased
+   * rather than left orphaned on disk. Cells move to the default session first, so the
+   * grid keeps every cell and those cells simply come back signed out.
+   */
+  const deleteSession = useCallback(async (id: string) => {
+    if (!store || id === DEFAULT_SESSION_ID) return
+    const session = store.sessions.find((s) => s.id === id)
+    if (!session) return
+
+    const cells = sessionUsage(store.workspaces)[id] ?? 0
+    const moved = cells === 0 ? '' : `\n\n${cells} cell(s) will move to the default session.`
+    if (!confirm(`Delete "${session.name}" and erase its cookies and storage for good?${moved}`)) {
+      return
+    }
+
+    await window.webgrid.clearSession(partitionFor(id))
+    setStore((prev) =>
+      prev
+        ? {
+            ...prev,
+            sessions: prev.sessions.filter((s) => s.id !== id),
+            workspaces: reassignSession(prev.workspaces, id, DEFAULT_SESSION_ID),
+          }
+        : prev,
+    )
+  }, [store])
 
   // --- picker --------------------------------------------------------------
 
@@ -252,13 +307,19 @@ export function App() {
         {showSettings ? (
           <SettingsPanel
             settings={store.settings}
+            sessions={store.sessions}
+            usage={sessionUsage(store.workspaces)}
             onChange={setSettings}
+            onAddSession={addSession}
+            onRenameSession={renameSession}
+            onDeleteSession={(id) => void deleteSession(id)}
             onClose={() => setShowSettings(false)}
           />
         ) : (
           selected && (
             <CellInspector
               cell={selected}
+              sessions={store.sessions}
               runtime={runtimes[selected.id] ?? null}
               onPatch={(patch) => mutate((ws) => updateCell(ws, selected.id, patch))}
               onClose={() => setSelectedId(null)}

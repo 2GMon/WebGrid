@@ -15,7 +15,6 @@ export const IPC = {
   PickerCancel: 'picker:cancel',
   PickerClear: 'picker:clear',
   SessionClear: 'session:clear',
-  SessionList: 'session:list',
 
   // main -> renderer
   RuntimeUpdate: 'runtime:update',

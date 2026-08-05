@@ -1,14 +1,14 @@
 import { session, type Session } from 'electron'
 
 /**
- * Cells pick a partition so that sign-in state is scoped, not global.
+ * Cells pick a session so that sign-in state is scoped, not global. New cells start
+ * on the default session, and the user adds more to keep profiles apart.
  *
- * This matters for YouTube in particular: a Premium individual plan only allows one
- * concurrent stream, and separate browsers count as separate streams. Signed out,
- * there is no such cap. So the default partition for new cells is `persist:anon`
- * and signing in is opt-in per cell.
+ * Worth knowing when deciding where to sign in: a YouTube Premium individual plan
+ * allows only one concurrent stream, and a second signed-in cell counts as a second
+ * stream. Signed out there is no such cap, so a wall of YouTube cells is best left on
+ * a session that was never signed in.
  */
-export const DEFAULT_PARTITION = 'persist:anon'
 
 const configured = new Set<string>()
 

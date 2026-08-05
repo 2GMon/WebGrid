@@ -163,6 +163,10 @@ button.is-active { background: var(--accent); border-color: var(--accent); }
 .sidebar input[type="checkbox"] { width: auto; }
 .partitions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .partitions li { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+/* The name is the only part that stretches; the count and buttons keep their width. */
+.partitions .session-name { flex: 1; min-width: 0; }
+.partitions .count { flex: none; font-size: 11px; color: var(--dim); white-space: nowrap; }
+.partitions button:disabled { opacity: 0.4; cursor: default; }
 
 .hint { margin: 0; font-size: 11px; color: var(--dim); }
 .hint code { user-select: text; word-break: break-all; }

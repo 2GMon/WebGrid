@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
-import type { Cell, CellRuntime } from '@shared/types'
-import { PARTITIONS } from '../state'
+import { partitionFor, type Cell, type CellRuntime, type SessionProfile } from '@shared/types'
 
 type Props = {
   cell: Cell
+  sessions: SessionProfile[]
   runtime: CellRuntime | null
   onPatch: (patch: Partial<Cell>) => void
   onClose: () => void
 }
 
 /** Per-cell settings. Docked to the side so it never overlaps a native view. */
-export function CellInspector({ cell, runtime, onPatch, onClose }: Props) {
+export function CellInspector({ cell, sessions, runtime, onPatch, onClose }: Props) {
   const [url, setUrl] = useState(cell.url)
   useEffect(() => setUrl(cell.url), [cell.id, cell.url])
 
@@ -84,14 +84,17 @@ export function CellInspector({ cell, runtime, onPatch, onClose }: Props) {
       <label>
         Session
         <select value={cell.partition} onChange={(e) => onPatch({ partition: e.target.value })}>
-          {PARTITIONS.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
+          {sessions.map((s) => (
+            <option key={s.id} value={partitionFor(s.id)}>
+              {s.name}
             </option>
           ))}
         </select>
       </label>
-      <p className="hint">Changing the session reloads the cell, since a session is fixed for the life of a view.</p>
+      <p className="hint">
+        Changing the session reloads the cell, since a session is fixed for the life of a view.
+        Sessions are added and removed in Settings.
+      </p>
 
       <label>
         Zoom

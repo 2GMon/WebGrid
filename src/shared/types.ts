@@ -15,6 +15,28 @@ export type CellMode = z.infer<typeof CellModeSchema>
  */
 export const PartitionSchema = z.string().regex(/^persist:[a-z0-9-]+$/)
 
+/**
+ * A named cookie jar that cells are assigned to. `id` is what goes into the Electron
+ * partition name and is never rewritten, so renaming a session keeps every cookie and
+ * sign-in it holds; only `name` is user-visible.
+ */
+export const SessionProfileSchema = z.object({
+  id: z.string().regex(/^[a-z0-9-]+$/),
+  /**
+   * Deliberately not `min(1)`: the rename field writes through on every keystroke, so
+   * clearing it to type a new name would otherwise persist a store that fails to parse
+   * on the next launch. Blank names are given one back by `reconcileSessions`.
+   */
+  name: z.string().default('Session'),
+})
+export type SessionProfile = z.infer<typeof SessionProfileSchema>
+
+/** The one session that always exists, and where cells land when another is deleted. */
+export const DEFAULT_SESSION_ID = 'default'
+
+export const partitionFor = (id: string): string => `persist:${id}`
+export const sessionIdOf = (partition: string): string => partition.replace(/^persist:/, '')
+
 export const CellSchema = z.object({
   id: z.string(),
   url: z.string().url().or(z.literal('')),
@@ -22,7 +44,7 @@ export const CellSchema = z.object({
   mode: CellModeSchema.default('page'),
   /** CSS selector captured by the element picker. Only used when mode === 'element'. */
   selector: z.string().nullable().default(null),
-  partition: PartitionSchema.default('persist:anon'),
+  partition: PartitionSchema.default(partitionFor(DEFAULT_SESSION_ID)),
   muted: z.boolean().default(true),
   zoomFactor: z.number().min(0.25).max(3).default(1),
   /** Auto-reload interval in seconds. 0 disables it. */
@@ -86,6 +108,11 @@ export type WindowState = z.infer<typeof WindowStateSchema>
 export const StoreSchema = z.object({
   version: z.literal(1).default(1),
   settings: SettingsSchema.default({}),
+  /**
+   * Editable by the user, but never empty: `reconcileSessions` in the store puts the
+   * default back if it is missing and adopts any partition a cell still refers to.
+   */
+  sessions: z.array(SessionProfileSchema).default([{ id: DEFAULT_SESSION_ID, name: 'Default' }]),
   window: WindowStateSchema.default({}),
   workspaces: z.array(WorkspaceSchema).default([]),
   lastWorkspaceId: z.string().nullable().default(null),

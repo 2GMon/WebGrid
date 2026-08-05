@@ -1,5 +1,14 @@
-import { nanoid } from 'nanoid'
-import { CellSchema, WorkspaceSchema, type Cell, type Workspace } from '@shared/types'
+import { customAlphabet, nanoid } from 'nanoid'
+import {
+  CellSchema,
+  SessionProfileSchema,
+  WorkspaceSchema,
+  partitionFor,
+  sessionIdOf,
+  type Cell,
+  type SessionProfile,
+  type Workspace,
+} from '@shared/types'
 
 export function newCell(partial: Partial<Cell> = {}): Cell {
   return CellSchema.parse({ id: nanoid(10), url: '', selector: null, ...partial })
@@ -58,10 +67,41 @@ export function updateCell(ws: Workspace, id: string, patch: Partial<Cell>): Wor
 
 export const liveCells = (ws: Workspace): Cell[] => ws.cells.filter((c): c is Cell => c !== null)
 
-/** Presets offered in the partition dropdown. */
-export const PARTITIONS = [
-  { value: 'persist:anon', label: 'Signed out (recommended for YouTube)' },
-  { value: 'persist:default', label: 'Default profile' },
-  { value: 'persist:work', label: 'Work profile' },
-  { value: 'persist:alt', label: 'Alt profile' },
-]
+/**
+ * Session ids end up inside a partition name, which the schema restricts to lowercase
+ * alphanumerics — narrower than nanoid's default alphabet.
+ */
+const sessionId = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 8)
+
+export function newSession(name: string): SessionProfile {
+  return SessionProfileSchema.parse({ id: sessionId(), name })
+}
+
+/** How many cells across every workspace are on a given session. */
+export function sessionUsage(workspaces: Workspace[]): Record<string, number> {
+  const usage: Record<string, number> = {}
+  for (const ws of workspaces) {
+    for (const cell of ws.cells) {
+      if (!cell) continue
+      const id = sessionIdOf(cell.partition)
+      usage[id] = (usage[id] ?? 0) + 1
+    }
+  }
+  return usage
+}
+
+/**
+ * Moves every cell off a session, wherever it lives. Deleting a session wipes the
+ * partition's cookies, so leaving a cell pointed at it would silently sign that cell
+ * out and then hand the same partition name to whatever session is created next.
+ */
+export function reassignSession(workspaces: Workspace[], from: string, to: string): Workspace[] {
+  const fromPartition = partitionFor(from)
+  const toPartition = partitionFor(to)
+  return workspaces.map((ws) => ({
+    ...ws,
+    cells: ws.cells.map((c) =>
+      c && c.partition === fromPartition ? { ...c, partition: toPartition } : c,
+    ),
+  }))
+}
