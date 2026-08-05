@@ -199,15 +199,29 @@ function resolveTarget(): HTMLElement | null {
  * in some players), whereas a transform leaves the document structure untouched.
  */
 function applyCrop() {
-  const target = resolveTarget()
-  if (cropMode === 'page' || !target) {
-    styleEl().textContent = ''
-    target?.style.removeProperty('transform')
+  const style = styleEl()
+
+  if (cropMode === 'page') {
+    clearCrop(style)
     return
   }
 
-  const rect = target.getBoundingClientRect()
-  if (rect.width < 1 || rect.height < 1) return
+  // The crop pins and scales the target, so measuring it while the crop is applied
+  // would feed the transformed geometry back into the next scale and the cell would
+  // oscillate. Drop the rules first and read the page's own layout instead; nothing
+  // paints in between because this all happens within one frame.
+  const applied = style.textContent
+  style.textContent = ''
+
+  const target = resolveTarget()
+  const rect = target?.getBoundingClientRect()
+  if (!target || !rect || rect.width < 1 || rect.height < 1) {
+    // A single-page app re-rendering its player makes the target vanish for a moment.
+    // Holding the last crop through that gap avoids flashing the whole page; the
+    // observers call back once the element returns.
+    style.textContent = applied
+    return
+  }
 
   // Contain rather than cover, so nothing gets cut off.
   const scale = Math.min(window.innerWidth / rect.width, window.innerHeight / rect.height)
@@ -216,13 +230,20 @@ function applyCrop() {
 
   // Ancestors stay visible (hiding them would collapse the layout the target depends
   // on); only their own painted content is suppressed via `visibility`.
-  styleEl().textContent = `
+  //
+  // The target is pinned with an explicit width/height: a fixed element would
+  // otherwise shrink to fit its content, and every style inside it that resolves
+  // against its width — percentages, flex bases, container and media-ish layouts —
+  // would lay out differently from the page the user picked from.
+  const css = `
     html, body { overflow: hidden !important; background: #000 !important; margin: 0 !important; }
     body * { visibility: hidden !important; }
     [data-webgrid-target], [data-webgrid-target] * { visibility: visible !important; }
     [data-webgrid-target] {
       position: fixed !important;
       left: 0 !important; top: 0 !important;
+      width: ${rect.width}px !important; height: ${rect.height}px !important;
+      margin: 0 !important;
       transform-origin: top left !important;
       transform: translate(${offsetX}px, ${offsetY}px) scale(${scale}) !important;
       z-index: 2147483646 !important;
@@ -234,9 +255,23 @@ function applyCrop() {
   })
   target.setAttribute('data-webgrid-target', '')
 
-  resizeObserver?.disconnect()
-  resizeObserver = new ResizeObserver(() => scheduleCrop())
-  resizeObserver.observe(document.documentElement)
+  // Measuring uncropped makes this idempotent: a settled crop recomputes to the same
+  // rules, the document stops changing size, and the observers below go quiet.
+  style.textContent = css
+
+  // Created once: a fresh observer per pass would pile up callbacks and keep the
+  // re-crop loop alive.
+  if (!resizeObserver) {
+    resizeObserver = new ResizeObserver(() => scheduleCrop())
+    resizeObserver.observe(document.documentElement)
+  }
+}
+
+function clearCrop(style: HTMLStyleElement) {
+  style.textContent = ''
+  document
+    .querySelectorAll('[data-webgrid-target]')
+    .forEach((el) => el.removeAttribute('data-webgrid-target'))
 }
 
 let cropRaf = 0
