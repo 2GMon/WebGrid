@@ -14,6 +14,18 @@ export function CellInspector({ cell, runtime, onPatch, onClose }: Props) {
   const [url, setUrl] = useState(cell.url)
   useEffect(() => setUrl(cell.url), [cell.id, cell.url])
 
+  const [selector, setSelector] = useState(cell.selector ?? '')
+  useEffect(() => setSelector(cell.selector ?? ''), [cell.id, cell.selector])
+
+  // Typing a selector is only ever done to display that element, so committing one
+  // switches the cell into element mode — and clearing it switches back.
+  const commitSelector = () => {
+    const next = selector.trim()
+    if (next === (cell.selector ?? '')) return
+    if (next) onPatch({ selector: next, mode: 'element' })
+    else onPatch({ selector: null, mode: cell.mode === 'element' ? 'page' : cell.mode })
+  }
+
   return (
     <aside className="sidebar">
       <header>
@@ -48,12 +60,26 @@ export function CellInspector({ cell, runtime, onPatch, onClose }: Props) {
           </option>
         </select>
       </label>
-      {cell.selector && (
-        <p className="hint">
-          <code>{cell.selector}</code>
+      <label>
+        Selector
+        <form onSubmit={(e) => { e.preventDefault(); commitSelector() }}>
+          <input
+            value={selector}
+            placeholder="CSS selector or XPath"
+            spellCheck={false}
+            onChange={(e) => setSelector(e.target.value)}
+            onBlur={commitSelector}
+          />
+        </form>
+      </label>
+      <p className="hint">
+        Filled in by the picker, and editable for elements it cannot reach. Anything
+        starting with <code>/</code> or <code>(</code> is evaluated as XPath, everything
+        else as a CSS selector.
+        {cell.selector && (
           <button onClick={() => onPatch({ selector: null, mode: 'page' })}>clear</button>
-        </p>
-      )}
+        )}
+      </p>
 
       <label>
         Session

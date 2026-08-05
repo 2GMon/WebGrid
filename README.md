@@ -13,7 +13,8 @@ side in the same wall.
 - **Per-cell sessions** — each cell picks an isolated partition, so sign-in state is
   scoped rather than global
 - **Element picker** — hover and click a page element like in devtools; the cell then
-  shows only that element, scaled to fill
+  shows only that element, scaled to fill. The selector is editable in the inspector for
+  elements the picker cannot reach — CSS, or XPath when it starts with `/` or `(`
 - **Reorderable grid** — drag cells to swap them; add or remove rows and columns
 - **Workspaces** — save page/grid combinations and switch between them; restore the
   last one on startup (or not)

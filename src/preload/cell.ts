@@ -185,9 +185,36 @@ function styleEl(): HTMLStyleElement {
   return el
 }
 
+/**
+ * Selectors are hand-editable, so both flavours have to work. A CSS selector can never
+ * begin with `/` or `(`, which makes the leading character enough to tell them apart —
+ * the same rule the inspector documents to the user.
+ */
+function isXPath(selector: string): boolean {
+  return /^\s*[/(]/.test(selector)
+}
+
+function queryTarget(selector: string): HTMLElement | null {
+  try {
+    if (!isXPath(selector)) return document.querySelector(selector)
+    const result = document.evaluate(
+      selector,
+      document,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null,
+    )
+    const node = result.singleNodeValue
+    return node instanceof HTMLElement ? node : null
+  } catch {
+    // A half-typed selector throws; treated the same as "no match".
+    return null
+  }
+}
+
 function resolveTarget(): HTMLElement | null {
   if (cropMode === 'video') return document.querySelector('video')
-  if (cropMode === 'element' && cropSelector) return document.querySelector(cropSelector)
+  if (cropMode === 'element' && cropSelector) return queryTarget(cropSelector)
   return null
 }
 
