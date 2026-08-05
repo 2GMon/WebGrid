@@ -1,0 +1,24 @@
+appId: dev.webgrid.app
+productName: WebGrid
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.utilities
+  # Unsigned builds are fine for local use; CI should provide identity + notarisation.
+  identity: null
+win:
+  target:
+    - nsis
+    - zip
+linux:
+  target:
+    - AppImage
+    - deb
+  category: AudioVideo

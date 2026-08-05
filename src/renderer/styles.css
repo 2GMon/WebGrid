@@ -1,0 +1,170 @@
+:root {
+  --bg: #101014;
+  --panel: #1a1a20;
+  --line: #2c2c34;
+  --text: #e6e6ea;
+  --dim: #9a9aa6;
+  --accent: #4f9cff;
+  --head: 26px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  user-select: none;
+}
+
+button, input, select {
+  font: inherit;
+  color: inherit;
+  background: #24242c;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+button { cursor: pointer; }
+button:hover { background: #2f2f39; }
+button.is-active { background: var(--accent); border-color: var(--accent); }
+
+.app { display: flex; flex-direction: column; height: 100vh; }
+.boot { display: grid; place-items: center; height: 100vh; color: var(--dim); }
+
+/* toolbar ---------------------------------------------------------------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.drag-region { -webkit-app-region: drag; width: 72px; height: 24px; }
+.toolbar button, .toolbar select, .toolbar input { -webkit-app-region: no-drag; }
+.ws-name { width: 160px; }
+.spacer { flex: 1; }
+.stepper { display: flex; align-items: center; gap: 4px; color: var(--dim); }
+.stepper b { min-width: 16px; text-align: center; color: var(--text); }
+
+/* grid ------------------------------------------------------------------- */
+
+/* Everything below the toolbar. The inspector is a sibling column rather than an
+   overlay, because a native view would paint straight over an overlay. */
+.stage {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.grid {
+  flex: 1;
+  display: grid;
+  padding: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
+.cell.is-selected { border-color: var(--accent); }
+.cell.is-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.cell.is-dragging { opacity: 0.5; }
+
+.cell-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--head);
+  flex: none;
+  padding: 0 6px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  cursor: grab;
+}
+.grip { color: var(--dim); }
+.cell-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cell-actions { display: flex; gap: 2px; }
+.cell-actions button { padding: 0 5px; line-height: 18px; }
+
+.badges { display: flex; gap: 3px; }
+.badge {
+  font-size: 10px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #33333d;
+  color: var(--dim);
+}
+.badge.is-error { background: #5a1f26; color: #ffb4bb; }
+.badge.is-warn { background: #5a4a1f; color: #ffe0a0; }
+.badge.is-dim { background: transparent; border: 1px solid var(--line); }
+
+/* The native view is positioned exactly over this element. Keep it empty. */
+.cell-viewport { flex: 1; min-height: 0; position: relative; }
+
+.suspended {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.suspended img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: grayscale(0.6) brightness(0.5);
+}
+.suspended button { position: relative; }
+
+.cell.is-empty { display: grid; place-items: center; background: #16161c; }
+.cell.is-empty form { display: flex; gap: 4px; padding: 8px; }
+.cell.is-empty input { width: 200px; }
+
+/* sidebar (settings and cell inspector share it) -------------------------- */
+
+.sidebar {
+  flex: none;
+  width: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sidebar header { display: flex; justify-content: space-between; align-items: center; }
+.sidebar h3 { margin: 8px 0 0; }
+.sidebar label { display: flex; flex-direction: column; gap: 3px; color: var(--dim); }
+.sidebar label.row { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
+.sidebar input, .sidebar select { width: 100%; }
+.sidebar input[type="checkbox"] { width: auto; }
+.partitions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.partitions li { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+
+.hint { margin: 0; font-size: 11px; color: var(--dim); }
+.hint code { user-select: text; word-break: break-all; }
+.error { color: #ffb4bb; font-size: 11px; }
+
