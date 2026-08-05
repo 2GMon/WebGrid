@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import type { Cell, CellRuntime } from '@shared/types'
 
@@ -43,13 +43,23 @@ export function CellFrame(props: Props) {
   const host = safeHost(cell.url)
   const stats = runtime?.stats
 
+  /**
+   * Selecting opens the inspector, which re-lays out the grid and pulls the button out
+   * from under the cursor before mouseup — so the click would never fire and the user
+   * had to press twice. Buttons act on their own instead, without selecting the cell.
+   */
+  const selectUnlessButton = (e: MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    props.onSelect()
+  }
+
   return (
     <div
       ref={setDropRef}
       className={['cell', selected && 'is-selected', isOver && 'is-over', isDragging && 'is-dragging']
         .filter(Boolean)
         .join(' ')}
-      onMouseDown={props.onSelect}
+      onMouseDown={selectUnlessButton}
     >
       <header className="cell-head" ref={setDragRef} {...attributes} {...listeners}>
         <span className="grip" aria-hidden>⠿</span>
