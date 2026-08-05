@@ -38,8 +38,18 @@ npm run dist
 ```
 
 Cross-building is possible but limited: Windows installers need Wine on macOS/Linux,
-and macOS builds must run on macOS. CI with a matrix of the three runners is the
-practical route.
+and macOS builds must run on macOS. So all three are built on CI instead: pushing a
+`v*` tag runs `.github/workflows/release.yml`, which builds on a matrix of the three
+runners and collects the installers into a draft GitHub Release.
+
+Builds are unsigned. A locally built `.app` runs as-is, but a downloaded release is
+quarantined by the browser, and since macOS 15 right-click → Open no longer gets past
+that. Either clear the attribute or use the "Open Anyway" button under System Settings
+→ Privacy & Security:
+
+```sh
+xattr -d com.apple.quarantine /Applications/WebGrid.app
+```
 
 ## Notes and limitations
 
