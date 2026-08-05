@@ -103,6 +103,13 @@ export function App() {
   const cells = workspace ? liveCells(workspace) : []
   const cellsKey = JSON.stringify(cells)
 
+  /**
+   * Which cell sits in which slot. Unlike `cellsKey` this includes the empty slots, so
+   * moving a cell into one still changes the key — otherwise the frame would move while
+   * the native view stayed behind at its old bounds.
+   */
+  const layoutKey = workspace ? workspace.cells.map((c) => c?.id ?? '-').join(',') : ''
+
   useEffect(() => {
     window.webgrid.syncCells(cells)
     // `cellsKey` is the stable identity of the cell set; `cells` itself is a new
@@ -148,7 +155,7 @@ export function App() {
     }
   }, [
     pushBounds,
-    cellsKey,
+    layoutKey,
     selectedId, // opening a sidebar narrows the grid
     showSettings,
     workspace?.grid.rows,
