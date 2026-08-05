@@ -72,7 +72,14 @@ export class GridManager {
     this.emitRuntime()
   }
 
-  private createCell(spec: Cell) {
+  /**
+   * `bounds` is passed only when replacing an existing view, whose geometry the new
+   * one inherits. The renderer re-measures on layout changes alone, and swapping a
+   * cell's session changes neither the grid shape nor the slot order — so without
+   * this the replacement would sit at no size, never attach, and show as black until
+   * something else moved.
+   */
+  private createCell(spec: Cell, bounds: CellBounds | null = null) {
     // Ensure the partition exists and has its user agent and permission policy applied
     // before any page in it starts loading.
     getCellSession(spec.partition)
@@ -92,7 +99,7 @@ export class GridManager {
     const managed: Managed = {
       spec,
       view,
-      bounds: null,
+      bounds,
       attached: false,
       suspendedBy: null,
       snapshot: null,
@@ -110,6 +117,22 @@ export class GridManager {
     view.webContents.setAudioMuted(spec.muted)
     if (spec.url) void view.webContents.loadURL(spec.url).catch(() => {})
     this.scheduleRefresh(managed)
+
+    if (bounds) {
+      this.applyBounds(managed)
+      this.reconcileAttachment()
+    }
+  }
+
+  private applyBounds(managed: Managed) {
+    const b = managed.bounds
+    if (!b) return
+    managed.view.setBounds({
+      x: Math.round(b.x),
+      y: Math.round(b.y),
+      width: Math.max(1, Math.round(b.width)),
+      height: Math.max(1, Math.round(b.height)),
+    })
   }
 
   private wire(managed: Managed) {
@@ -172,8 +195,9 @@ export class GridManager {
     // A partition change is the one property that cannot be applied in place: the
     // session is bound to the webContents at construction time.
     if (prev.partition !== next.partition) {
+      const bounds = managed.bounds
       this.destroyCell(next.id, managed)
-      this.createCell(next)
+      this.createCell(next, bounds)
       return
     }
     if (prev.url !== next.url && next.url) {
@@ -210,12 +234,7 @@ export class GridManager {
       const managed = this.cells.get(b.id)
       if (!managed) continue
       managed.bounds = b
-      managed.view.setBounds({
-        x: Math.round(b.x),
-        y: Math.round(b.y),
-        width: Math.max(1, Math.round(b.width)),
-        height: Math.max(1, Math.round(b.height)),
-      })
+      this.applyBounds(managed)
     }
     this.enforceBudget()
     this.reconcileAttachment()
