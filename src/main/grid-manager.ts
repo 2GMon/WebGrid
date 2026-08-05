@@ -188,8 +188,9 @@ export class GridManager {
 
   private destroyCell(id: string, managed: Managed) {
     if (managed.refreshTimer) clearInterval(managed.refreshTimer)
-    if (managed.attached) this.win.contentView.removeChildView(managed.view)
-    managed.view.webContents.close()
+    // On app teardown the window (and its child views) may already be gone.
+    if (managed.attached && !this.win.isDestroyed()) this.win.contentView.removeChildView(managed.view)
+    if (!managed.view.webContents.isDestroyed()) managed.view.webContents.close()
     this.cells.delete(id)
   }
 
