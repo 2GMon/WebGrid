@@ -1,0 +1,86 @@
+name: Release
+
+# Tags only. Ordinary pushes and pull requests build nothing, which keeps the macOS
+# runner — billed at ten times the Linux rate — out of everyday development.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      # One platform failing should not throw away the other two, which are the
+      # expensive part of a release run.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            script: dist:mac
+          - os: windows-latest
+            script: dist:win
+          - os: ubuntu-latest
+            script: dist:linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # electron-builder names artifacts from package.json, not from the tag, so
+      # releasing v0.2.0 while package.json still says 0.1.0 would produce files
+      # labelled with the old version. No commit is made; this only affects the build.
+      - name: Match the package version to the tag
+        shell: bash
+        run: npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
+
+      # `npm run build` (typecheck + bundle) runs first via the dist script itself.
+      # `--publish never` keeps electron-builder from uploading on its own, so the
+      # release job below stays the single place that touches GitHub Releases.
+      - name: Build
+        run: npm run ${{ matrix.script }} -- --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          # The blockmap and latest*.yml files are what electron-updater reads to
+          # offer updates, so they ship alongside the installers.
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+            release/*.zip
+            release/*.blockmap
+            release/latest*.yml
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      # Draft, so the release is reviewed and published by hand rather than going
+      # public the moment a tag is pushed.
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >
+          gh release create "$GITHUB_REF_NAME"
+          --draft
+          --title "$GITHUB_REF_NAME"
+          --generate-notes
+          artifacts/*
