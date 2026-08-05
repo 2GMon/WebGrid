@@ -16,6 +16,9 @@ type Props = {
   onPatch: (patch: Partial<Cell>) => void
 }
 
+/** How far the pointer may travel before a press counts as a drag rather than a click. */
+export const DRAG_THRESHOLD_PX = 6
+
 /**
  * One grid slot. The frame draws a header and a hole; the page itself is a native
  * view that main positions over the hole. Anything the user needs to click has to
@@ -24,6 +27,7 @@ type Props = {
 export function CellFrame(props: Props) {
   const { index, cell, runtime, picking, selected } = props
   const viewportRef = useRef<HTMLDivElement>(null)
+  const pressRef = useRef<{ x: number; y: number } | null>(null)
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: index })
   const { setNodeRef: setDragRef, attributes, listeners, isDragging } = useDraggable({
@@ -44,12 +48,22 @@ export function CellFrame(props: Props) {
   const stats = runtime?.stats
 
   /**
-   * Selecting opens the inspector, which re-lays out the grid and pulls the button out
-   * from under the cursor before mouseup — so the click would never fire and the user
-   * had to press twice. Buttons act on their own instead, without selecting the cell.
+   * Selecting opens the inspector, which re-lays out the grid. Doing that on press would
+   * pull whatever is under the cursor away before release — the header buttons would
+   * never receive their click, and grabbing a header to reorder would fight the reflow.
+   * So selection waits for release, and only when the press did not turn into a drag.
    */
-  const selectUnlessButton = (e: MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return
+  const onPress = (e: MouseEvent) => {
+    pressRef.current = (e.target as HTMLElement).closest('button')
+      ? null
+      : { x: e.clientX, y: e.clientY }
+  }
+  const onRelease = (e: MouseEvent) => {
+    const down = pressRef.current
+    pressRef.current = null
+    if (!down || isDragging) return
+    // Same threshold the drag sensor uses, so a press is either a select or a drag.
+    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_THRESHOLD_PX) return
     props.onSelect()
   }
 
@@ -59,7 +73,8 @@ export function CellFrame(props: Props) {
       className={['cell', selected && 'is-selected', isOver && 'is-over', isDragging && 'is-dragging']
         .filter(Boolean)
         .join(' ')}
-      onMouseDown={selectUnlessButton}
+      onMouseDown={onPress}
+      onMouseUp={onRelease}
     >
       <header className="cell-head" ref={setDragRef} {...attributes} {...listeners}>
         <span className="grip" aria-hidden>⠿</span>

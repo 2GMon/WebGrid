@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import type { CellBounds, CellRuntime, Settings, Store, Workspace } from '@shared/types'
-import { CellFrame } from './components/CellFrame'
+import { CellFrame, DRAG_THRESHOLD_PX } from './components/CellFrame'
 import { Toolbar } from './components/Toolbar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { CellInspector } from './components/CellInspector'
@@ -163,7 +163,7 @@ export function App() {
 
   // --- drag and drop -------------------------------------------------------
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: DRAG_THRESHOLD_PX } }))
 
   const onDragEnd = useCallback((event: DragEndEvent) => {
     const from = Number(event.active.id)
