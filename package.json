@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Arrange live streams, webcams and arbitrary web page elements in a resizable grid.",
   "license": "MIT",
-  "author": "",
+  "author": "2GMon <2GMon@users.noreply.github.com>",
   "main": "./out/main/index.js",
   "type": "module",
   "scripts": {
