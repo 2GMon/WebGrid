@@ -65,6 +65,10 @@ async function createWindow() {
     height: saved.height,
     ...(usePosition ? { x: saved.x!, y: saved.y! } : {}),
     backgroundColor: '#101014',
+    // Packaged builds take the icon from the app bundle (macOS, Windows) or the
+    // generated .desktop entry (Linux). Development runs have neither, so they fall
+    // back to the Electron icon unless pointed at the source file.
+    ...(app.isPackaged ? {} : { icon: join(app.getAppPath(), 'build', 'icon.png') }),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     show: false,
   })
