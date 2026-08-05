@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, screen, WebContentsView } from 'electron'
+import { existsSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { GridManager } from './grid-manager'
 import { loadStore, saveStore } from './store'
@@ -172,6 +173,34 @@ function registerIpc() {
   ipcMain.on(IPC.PickerCancel, (_e, id: string) => grid?.cancelPicker(id))
   ipcMain.handle(IPC.SessionClear, (_e, partition: string) => clearPartition(partition))
 }
+
+/**
+ * Development runs take their name from package.json (`webgrid`) while packaged builds
+ * take it from electron-builder's productName (`WebGrid`), which would otherwise split
+ * the two across separate userData directories. Renaming the old directory carries the
+ * workspace *and* the session partitions over, so logged-in cells stay logged in.
+ *
+ * On a case-insensitive filesystem both names are already the same directory, and the
+ * `existsSync` on the new path makes this a no-op there.
+ */
+function migrateLegacyUserData() {
+  const parent = app.getPath('appData')
+  const legacy = join(parent, 'webgrid')
+  const next = join(parent, 'WebGrid')
+  if (!existsSync(legacy) || existsSync(next)) return
+  try {
+    renameSync(legacy, next)
+    console.log(`[store] migrated user data from ${legacy} to ${next}`)
+  } catch (err) {
+    // A failed migration only costs the previous state, so it must not block startup.
+    console.error('[store] could not migrate user data:', err)
+  }
+}
+
+// Must run before the name is set, since `appData` is name-independent but `userData`
+// is not, and before anything resolves `userData` for the first time.
+migrateLegacyUserData()
+app.setName('WebGrid')
 
 // A single instance keeps one set of session partitions authoritative; a second
 // process would fight the first over the same cookie jars on disk.
