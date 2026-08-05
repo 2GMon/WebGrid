@@ -1,10 +1,16 @@
-import { app, BrowserWindow, ipcMain, WebContentsView } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, WebContentsView } from 'electron'
 import { join } from 'node:path'
 import { GridManager } from './grid-manager'
 import { loadStore, saveStore } from './store'
 import { clearPartition } from './sessions'
 import { IPC } from '@shared/ipc'
-import { StoreSchema, type Cell, type CellBounds, type Store } from '@shared/types'
+import {
+  StoreSchema,
+  type Cell,
+  type CellBounds,
+  type Store,
+  type WindowState,
+} from '@shared/types'
 
 /** `--no-restore` starts with an empty workspace without touching the saved state. */
 const noRestore = process.argv.includes('--no-restore')
@@ -19,13 +25,67 @@ let store: Store
  */
 let shell: WebContentsView | null = null
 
+/**
+ * Records the window geometry into the store. `getNormalBounds()` is the un-maximised
+ * size, so restoring after un-maximising gives back the size the user actually chose.
+ */
+function persistWindowState() {
+  if (!win || win.isDestroyed()) return
+  const { x, y, width, height } = win.getNormalBounds()
+  store = {
+    ...store,
+    window: { x, y, width, height, maximized: win.isMaximized(), fullScreen: win.isFullScreen() },
+  }
+  void saveStore(store)
+}
+
+/**
+ * A saved position is only usable if the display it was on still exists — an external
+ * monitor that has since been unplugged would otherwise strand the window off-screen.
+ */
+function visibleOnSomeDisplay(state: WindowState) {
+  if (state.x === null || state.y === null) return false
+  return screen.getAllDisplays().some(({ workArea: a }) => {
+    return (
+      state.x! + state.width > a.x &&
+      state.x! < a.x + a.width &&
+      state.y! + state.height > a.y &&
+      state.y! < a.y + a.height
+    )
+  })
+}
+
 async function createWindow() {
+  const saved = store.window
+  const usePosition = visibleOnSomeDisplay(saved)
+
   win = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: saved.width,
+    height: saved.height,
+    ...(usePosition ? { x: saved.x!, y: saved.y! } : {}),
     backgroundColor: '#101014',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     show: false,
+  })
+  if (saved.maximized) win.maximize()
+  if (saved.fullScreen) win.setFullScreen(true)
+
+  // Debounced: resizing and dragging fire continuously, and each save rewrites the file.
+  let saveTimer: NodeJS.Timeout | null = null
+  const rememberBounds = () => {
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(persistWindowState, 400)
+  }
+  win.on('resize', rememberBounds)
+  win.on('move', rememberBounds)
+  win.on('maximize', rememberBounds)
+  win.on('unmaximize', rememberBounds)
+  win.on('enter-full-screen', rememberBounds)
+  win.on('leave-full-screen', rememberBounds)
+  // `close` still has a live window to measure; `closed` does not.
+  win.on('close', () => {
+    if (saveTimer) clearTimeout(saveTimer)
+    persistWindowState()
   })
 
   shell = new WebContentsView({
@@ -96,7 +156,9 @@ function registerIpc() {
       console.error('[store] refusing to save invalid state:', parsed.error.message)
       return
     }
-    store = parsed.data
+    // The renderer holds a copy taken at load time; the live window geometry is the
+    // main process's to own, so it is never taken from a renderer save.
+    store = { ...parsed.data, window: store.window }
     grid?.updateSettings(store.settings)
     await saveStore(store)
   })

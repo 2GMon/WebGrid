@@ -68,9 +68,25 @@ export const SettingsSchema = z.object({
 })
 export type Settings = z.infer<typeof SettingsSchema>
 
+/**
+ * Last window geometry. Owned by the main process (the renderer round-trips it
+ * untouched), so it is stored outside `settings`. `x`/`y` are null the first time,
+ * which lets the platform pick a sensible position.
+ */
+export const WindowStateSchema = z.object({
+  x: z.number().int().nullable().default(null),
+  y: z.number().int().nullable().default(null),
+  width: z.number().int().min(480).default(1440),
+  height: z.number().int().min(360).default(900),
+  maximized: z.boolean().default(false),
+  fullScreen: z.boolean().default(false),
+})
+export type WindowState = z.infer<typeof WindowStateSchema>
+
 export const StoreSchema = z.object({
   version: z.literal(1).default(1),
   settings: SettingsSchema.default({}),
+  window: WindowStateSchema.default({}),
   workspaces: z.array(WorkspaceSchema).default([]),
   lastWorkspaceId: z.string().nullable().default(null),
 })
