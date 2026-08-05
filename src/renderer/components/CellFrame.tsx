@@ -86,7 +86,6 @@ export function CellFrame(props: Props) {
           {runtime?.loading && <span className="badge">…</span>}
           {runtime?.error && <span className="badge is-error" title={runtime.error}>!</span>}
           {runtime?.suspended && <span className="badge is-warn" title="Suspended to stay within the decode budget">zZ</span>}
-          {cell.mode === 'element' && <span className="badge" title={cell.selector ?? ''}>elem</span>}
           {stats && (
             <span className="badge is-dim" title={`${stats.droppedFrames} dropped frames`}>
               {stats.height}p{stats.fps ? `·${stats.fps}fps` : ''}
@@ -95,6 +94,26 @@ export function CellFrame(props: Props) {
         </span>
 
         <span className="cell-actions">
+          {/* The header is the drag handle and a press on it selects the cell, so the
+              select swallows its own pointer events to stay usable. */}
+          <select
+            className="mode-select"
+            title={
+              cell.mode === 'element' && cell.selector
+                ? `Displaying ${cell.selector}`
+                : 'What this cell displays'
+            }
+            value={cell.mode}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onChange={(e) => props.onPatch({ mode: e.target.value as Cell['mode'] })}
+          >
+            <option value="page">Page</option>
+            <option value="video">Video</option>
+            <option value="element" disabled={!cell.selector}>
+              Element
+            </option>
+          </select>
           <button
             className={picking ? 'is-active' : ''}
             title="Pick an element to display (Esc to cancel)"
