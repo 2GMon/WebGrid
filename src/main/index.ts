@@ -130,8 +130,10 @@ async function createWindow() {
   })
 
   // Surface renderer errors instead of leaving a blank window to guess at.
-  shell.webContents.on('console-message', (_e, level, message, line, source) => {
-    if (level >= 2) console.error(`[renderer] ${message} (${source}:${line})`)
+  shell.webContents.on('console-message', ({ level, message, lineNumber, sourceId }) => {
+    if (level === 'warning' || level === 'error') {
+      console.error(`[renderer] ${message} (${sourceId}:${lineNumber})`)
+    }
   })
   shell.webContents.on('did-fail-load', (_e, code, desc) =>
     console.error(`[renderer] failed to load: ${desc} (${code})`),
