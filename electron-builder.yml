@@ -11,7 +11,8 @@ mac:
     - dmg
     - zip
   category: public.app-category.utilities
-  # Unsigned builds are fine for local use; CI should provide identity + notarisation.
+  # No certificate: electron-builder skips signing and build/adhoc-sign.cjs
+  # ad-hoc signs the bundle instead. CI should provide identity + notarisation.
   identity: null
 win:
   target:
@@ -22,3 +23,4 @@ linux:
     - AppImage
     - deb
   category: AudioVideo
+afterPack: build/adhoc-sign.cjs
