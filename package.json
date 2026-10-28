@@ -1,6 +1,6 @@
 {
   "name": "webgrid",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Arrange live streams, webcams and arbitrary web page elements in a resizable grid.",
   "license": "MIT",
   "author": "2GMon <2GMon@users.noreply.github.com>",
